@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract NFTLendX {
+    struct Loan {
+        address lender;
+        address borrower;
+        uint256 nftId;
+        uint256 collateral;
+        bool active;
+    }
+
+    mapping(uint256 => Loan) public loans;
+    mapping(uint256 => address) public nftOwners;
+
+    function lendNFT(uint256 nftId, uint256 collateral) public {
+        require(nftOwners[nftId] == msg.sender, "Only owner can lend NFT");
+        loans[nftId] = Loan({
+            lender: msg.sender,
+            borrower: address(0),
+            nftId: nftId,
+            collateral: collateral,
+            active: true
+        });
+    }
+
+    function borrowNFT(uint256 nftId) public payable {
+        Loan storage loan = loans[nftId];
+        require(loan.active, "NFT not available for loan");
+        require(msg.value == loan.collateral, "Insufficient collateral");
+
+        loan.borrower = msg.sender;
+        loan.active = false;
+
+        // Transfer collateral to lender
+        payable(loan.lender).transfer(msg.value);
+    }
+
+    function returnNFT(uint256 nftId) public {
+        Loan storage loan = loans[nftId];
+        require(loan.borrower == msg.sender, "Only borrower can return NFT");
+
+        loan.active = true;
+        loan.borrower = address(0);
+
+        // Transfer collateral back to borrower
+        payable(msg.sender).transfer(loan.collateral);
+    }
+}
